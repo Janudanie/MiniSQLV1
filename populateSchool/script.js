@@ -8,7 +8,7 @@ run = async query => {
   let client;
   try {
     client = new pg.Client({
-      connectionString: "postgresql://management:1234@localhost:5432/school"
+      connectionString: "postgresql://postgres@localhost:5432/school"
     });
     await client.connect();
     let { rows } = await client.query(query);
@@ -94,47 +94,59 @@ createGrades = async () => {
   });
 };
 
-runQueries = async () => {
-  await run("delete from classes where true");
-  await run("delete from classmembers where true");
-  await run("delete from courses where true");
-  await run("delete from grades where true");
-  await run("delete from students where true");
-  await run("delete from teacher_teacherteam where true");
-  await run("delete from teachers where true");
-  await run("delete from teacherteams where true");
-  await run(studentsQuery);
-  await run(teachersQuery);
-  await run(coursesQuery);
-  await run(
-    format(
+runQueries =  async () => {
+   await run("delete from classes where true;");
+   await run("delete from classmembers where true;");
+   await run("delete from courses where true;");
+   await run("delete from grades where true;");
+   await run("delete from students where true;");
+   await run("delete from teacher_teacherteam where true;");
+   await run("delete from teachers where true;");
+   await run("delete from teacherteams where true;");
+   await run(studentsQuery);
+   await run(teachersQuery);
+   await run(coursesQuery);
+   console.log(`delete from classes where true;
+    delete from classmembers where true;
+    delete from courses where true;
+    delete from grades where true"
+    delete from students where true;
+    delete from teacher_teacherteam where true;
+    delete from teachers where true;
+    delete from teacherteams where true;${studentsQuery + teachersQuery +  coursesQuery }`)
+  const a = format(
       "INSERT INTO teacherteams (teacherteamid) VALUES %L",
       createTeacherTeams()
     )
-  );
-  await createTeacherTeacherTeam().then(e =>
-    run(
-      format(
+    console.log(a + ';')
+  await run(a);
+   await createTeacherTeacherTeam().then(e =>{
+          const b =  format(
         "INSERT INTO teacher_teacherteam (teacherid, teacherteamid) VALUES %L",
         e
       )
-    )
+      console.log(b + ';')
+          run(b)
+   }
   );
- await run(
-    format(
+      const c = format(
       "INSERT INTO classes (classid, courseid, starts, ends, teacherteamid, coursetype) VALUES %L",
-      createClasses()
-    )
-  );
-  await createClassMembers().then(e =>
-    run(format("INSERT INTO classmembers (studentid, classid) VALUES %L", e))
-  );
-  await createGrades().then(e =>
-    run(format("INSERT INTO grades (studentid, courseid, grade) VALUES %L", e))
-  );
+      createClasses())
+      console.log(c) + ';'
+  await run(c)
+  await createClassMembers().then(e =>{
+     const d = format("INSERT INTO classmembers (studentid, classid) VALUES %L", e)
+     console.log(d + ';')
+     run(d)
+   });
+   await createGrades().then(e => {
+    const f = format("INSERT INTO grades (studentid, courseid, grade) VALUES %L", e)
+    console.log(f + ';')
+    run(f)
+   });
 };
 try {
   runQueries();
 } catch (e) {
-  console.warn(e);
+  console.warn(e + ';');
 }
