@@ -1,6 +1,9 @@
 CREATE OR REPLACE PROCEDURE teacher(fname text, lname text) AS
 $$
 BEGIN
+    IF ( SELECT current_setting('transaction_isolation') != 'serializable') THEN
+	    RAISE EXCEPTION 'This transaction needs to be run in serializable level';  
+    END IF;
     INSERT INTO teachers (firstname, lastname) VALUES (fname, lname);
 END
 $$
@@ -14,6 +17,9 @@ $$
 CREATE OR REPLACE PROCEDURE courses(title text) AS
 $$
 BEGIN
+    IF ( SELECT current_setting('transaction_isolation') != 'serializable') THEN
+	    RAISE EXCEPTION 'This transaction needs to be run in serializable level';  
+    END IF;
     INSERT INTO courses (title) VALUES (title);
 END
 $$
@@ -26,6 +32,9 @@ $$
 CREATE OR REPLACE PROCEDURE teacherteam(ttID int) AS
 $$
 BEGIN
+    IF ( SELECT current_setting('transaction_isolation') != 'serializable') THEN
+	    RAISE EXCEPTION 'This transaction needs to be run in serializable level';  
+    END IF;
     INSERT INTO teacherteams (teacherteamID) VALUES (ttid);
 END
 $$
@@ -38,6 +47,9 @@ $$
 CREATE OR REPLACE PROCEDURE student(fname text, lname text) AS
 $$
 BEGIN
+    IF ( SELECT current_setting('transaction_isolation') != 'serializable') THEN
+	    RAISE EXCEPTION 'This transaction needs to be run in serializable level';  
+    END IF;
     INSERT INTO students (firstname, lastname) VALUES (fname, lname);
 END
 $$
@@ -50,6 +62,9 @@ $$
 CREATE OR REPLACE PROCEDURE grade(studentID int, courseID int, grade int) AS
 $$
 BEGIN
+    IF ( SELECT current_setting('transaction_isolation') != 'serializable') THEN
+	    RAISE EXCEPTION 'This transaction needs to be run in serializable level';  
+    END IF;
     INSERT INTO grades (studentID, courseID, grade) VALUES (studentID, courseID, grade);
 END
 $$
@@ -62,6 +77,9 @@ $$
 CREATE OR REPLACE PROCEDURE ttt(tID int, ttID int) AS
 $$
 BEGIN
+    IF ( SELECT current_setting('transaction_isolation') != 'serializable') THEN
+	    RAISE EXCEPTION 'This transaction needs to be run in serializable level';  
+    END IF;
     INSERT INTO teacher_teacherteam (teacherID, teacherteamID) VALUES (tID, ttID);
 END
 $$
@@ -75,6 +93,9 @@ $$
 CREATE OR REPLACE PROCEDURE klasser(kID int, cID int, starter timestamp, slutter timestamp, ttID int, ct text) AS
 $$
 BEGIN
+    IF ( SELECT current_setting('transaction_isolation') != 'serializable') THEN
+	    RAISE EXCEPTION 'This transaction needs to be run in serializable level';  
+    END IF;
     INSERT INTO classes (classID, courseID, starts, ends, teacherteamID, coursetype) VALUES (kID, cID, starter, slutter, ttID, ct);
 END
 $$
@@ -87,6 +108,9 @@ $$
 CREATE OR REPLACE PROCEDURE classmember(classID int, studentID int) AS
 $$
 BEGIN
+    IF ( SELECT current_setting('transaction_isolation') != 'serializable') THEN
+	    RAISE EXCEPTION 'This transaction needs to be run in serializable level';  
+    END IF;
     INSERT INTO classmembers (classID, studentID) VALUES (classID, studentID);
 END
 $$

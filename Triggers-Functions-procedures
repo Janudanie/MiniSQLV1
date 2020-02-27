@@ -1,0 +1,299 @@
+CREATE OR REPLACE FUNCTION findGraduate (findcourseID INT)
+	RETURNS TABLE (studentID INT, courseid INT, grade INT, firstname text,lastname text) AS $$
+BEGIN
+	RETURN QUERY SELECT 
+		grades.studentid,
+		grades.courseid,
+		grades.grade,
+		students.firstname,
+		students.lastname
+	FROM 
+		grades 
+	JOIN students ON (grades.studentid = students.studentid)
+	WHERE 
+		grades.courseid = findcourseID;
+end; $$
+LANGUAGE 'plpgsql';
+
+
+CREATE OR REPLACE PROCEDURE teacher(fname text, lname text) AS
+$$
+BEGIN
+    IF ( SELECT current_setting('transaction_isolation') != 'serializable') THEN
+	    RAISE EXCEPTION 'This transaction needs to be run in serializable level';  
+    END IF;
+    INSERT INTO teachers (firstname, lastname) VALUES (fname, lname);
+END
+$$
+    LANGUAGE 'plpgsql';
+  
+--CALL teacher('Henrik', 'Jakobsen');
+--SELECT * FROM teachers;
+
+
+
+CREATE OR REPLACE PROCEDURE courses(title text) AS
+$$
+BEGIN
+    IF ( SELECT current_setting('transaction_isolation') != 'serializable') THEN
+	    RAISE EXCEPTION 'This transaction needs to be run in serializable level';  
+    END IF;
+    INSERT INTO courses (title) VALUES (title);
+END
+$$
+    LANGUAGE 'plpgsql';
+
+--CALL courses('Matematik')
+--SELECT * FROM courses
+
+
+CREATE OR REPLACE PROCEDURE teacherteam(ttID int) AS
+$$
+BEGIN
+    IF ( SELECT current_setting('transaction_isolation') != 'serializable') THEN
+	    RAISE EXCEPTION 'This transaction needs to be run in serializable level';  
+    END IF;
+    INSERT INTO teacherteams (teacherteamID) VALUES (ttid);
+END
+$$
+    LANGUAGE 'plpgsql';
+
+--CALL teacherteam(1)
+--SELECT * FROM teacherteams
+
+
+CREATE OR REPLACE PROCEDURE student(fname text, lname text) AS
+$$
+BEGIN
+    IF ( SELECT current_setting('transaction_isolation') != 'serializable') THEN
+	    RAISE EXCEPTION 'This transaction needs to be run in serializable level';  
+    END IF;
+    INSERT INTO students (firstname, lastname) VALUES (fname, lname);
+END
+$$
+    LANGUAGE 'plpgsql';
+
+--CALL student('Inger', 'Støjer')
+--SELECT * FROM students
+    
+
+CREATE OR REPLACE PROCEDURE grade(studentID int, courseID int, grade int) AS
+$$
+BEGIN
+    IF ( SELECT current_setting('transaction_isolation') != 'serializable') THEN
+	    RAISE EXCEPTION 'This transaction needs to be run in serializable level';  
+    END IF;
+    INSERT INTO grades (studentID, courseID, grade) VALUES (studentID, courseID, grade);
+END
+$$
+    LANGUAGE 'plpgsql';
+    
+--CALL grade(1, 1, 12)
+--SELECT * FROM grades
+
+
+CREATE OR REPLACE PROCEDURE ttt(tID int, ttID int) AS
+$$
+BEGIN
+    IF ( SELECT current_setting('transaction_isolation') != 'serializable') THEN
+	    RAISE EXCEPTION 'This transaction needs to be run in serializable level';  
+    END IF;
+    INSERT INTO teacher_teacherteam (teacherID, teacherteamID) VALUES (tID, ttID);
+END
+$$
+    LANGUAGE 'plpgsql';
+    
+--CALL ttt(1, 1)
+--SELECT * FROM teacher_teacherteam
+    
+
+
+CREATE OR REPLACE PROCEDURE klasser(kID int, cID int, starter timestamp, slutter timestamp, ttID int, ct text) AS
+$$
+BEGIN
+    IF ( SELECT current_setting('transaction_isolation') != 'serializable') THEN
+	    RAISE EXCEPTION 'This transaction needs to be run in serializable level';  
+    END IF;
+    INSERT INTO classes (classID, courseID, starts, ends, teacherteamID, coursetype) VALUES (kID, cID, starter, slutter, ttID, ct);
+END
+$$
+    LANGUAGE 'plpgsql';
+
+--CALL createClass(3, 1, '2020-02-02','2020-03-03', 1, 'Online'::text)
+--SELECT * FROM classes
+    
+    
+CREATE OR REPLACE PROCEDURE classmember(classID int, studentID int) AS
+$$
+BEGIN
+    IF ( SELECT current_setting('transaction_isolation') != 'serializable') THEN
+	    RAISE EXCEPTION 'This transaction needs to be run in serializable level';  
+    END IF;
+    INSERT INTO classmembers (classID, studentID) VALUES (classID, studentID);
+END
+$$
+    LANGUAGE 'plpgsql';
+    
+--CALL classmember(1, 1)
+--SELECT * FROM classmembers
+
+
+CREATE TRIGGER weeks12 BEFORE INSERT OR UPDATE ON classes
+	FOR EACH ROW EXECUTE PROCEDURE max12weeks();
+
+CREATE OR REPLACE FUNCTION max12weeks() RETURNS TRIGGER AS $message$
+BEGIN
+	IF ( SELECT current_setting('transaction_isolation') != 'serializable') THEN
+		RAISE EXCEPTION 'This transaction needs to be run in serializable level';  
+	END IF;
+
+IF (
+SELECT DATE_PART('day', new.ends::timestamp - new.starts::timestamp)) > 84 THEN
+	RAISE EXCEPTION 'Course cant be longer then 12 weeks';
+END IF;
+RETURN NEW;
+END; $message$
+LANGUAGE plpgsql;
+
+
+DROP TRIGGER IF EXISTS isTeacherAvailable ON teacher_teacherteam;
+DROP FUNCTION IF EXISTS isTeacherAvailaibleTeacher_teacherteam;
+
+CREATE FUNCTION isTeacherAvailaibleTeacher_teacherteam()
+  RETURNS trigger AS
+$func$
+BEGIN
+   	IF (
+		(SELECT count(*) as amount
+		FROM classes 
+		JOIN teacher_teacherteam 
+		ON (classes.teacherteamid = teacher_teacherteam.teacherteamid)
+		WHERE teacher_teacherteam.teacherid = NEW.teacherid AND classes.ends > now())
+		>= 2 )
+	THEN 
+		RAISE EXCEPTION 'Teacher is currently assigned two active teacherteams';
+   	END IF;
+   RETURN NEW;
+END
+$func$  
+LANGUAGE plpgsql;
+
+CREATE TRIGGER isTeacherAvailable BEFORE INSERT ON teacher_teacherteam
+	FOR EACH ROW EXECUTE PROCEDURE isTeacherAvailaibleTeacher_teacherteam();
+
+----------------------------------------------------------------------------------------------
+
+DROP TRIGGER IF EXISTS isTeacherAvailable ON classes;
+DROP FUNCTION IF EXISTS isTeacherAvailaibleClasses; 
+
+CREATE FUNCTION isTeacherAvailaibleClasses()
+  RETURNS trigger AS
+$func$
+BEGIN
+   	IF (
+		(SELECT count(*) as amount
+		FROM classes 
+		JOIN teacher_teacherteam 
+		ON (classes.teacherteamid = teacher_teacherteam.teacherteamid)
+		WHERE teacher_teacherteam.teacherteamid = NEW.teacherteamid AND classes.ends > now())
+		>= 2 )
+	THEN
+            RAISE EXCEPTION 'Teacher is currently assigned two active teacherteams';
+   	END IF;
+   RETURN NEW;
+END
+$func$  
+LANGUAGE plpgsql;
+
+CREATE TRIGGER isTeacherAvailable BEFORE INSERT ON classes
+	FOR EACH ROW EXECUTE PROCEDURE isTeacherAvailaibleClasses();
+
+
+DROP TRIGGER IF EXISTS maxcourse ON classmembers;
+CREATE TRIGGER maxcourse BEFORE INSERT OR UPDATE ON classmembers
+	FOR EACH ROW EXECUTE PROCEDURE checkmaxcourse();
+	
+	
+
+CREATE OR REPLACE FUNCTION checkmaxcourse() RETURNS TRIGGER AS $message$
+BEGIN
+
+IF ( SELECT current_setting('transaction_isolation') != 'serializable') THEN
+	RAISE EXCEPTION 'This transaction needs to be run in serializable level';  
+END IF;
+
+IF (SELECT COUNT(*) FROM classmembers WHERE classid = new.classid) >= 100 THEN
+		RAISE EXCEPTION 'Class is full';
+	END IF;
+
+IF (SELECT coursetype FROM classes WHERE classes.classid = new.classid) = 'Attendance' THEN
+	IF (SELECT count(*) FROM classmembers JOIN classes ON(classmembers.classid = classes.classid)  WHERE classmembers.studentid = new.studentid AND 		coursetype = 'Attendance') > 0 THEN
+		RAISE EXCEPTION 'Already assigned a attandence course';
+	END IF;
+	IF (SELECT count(*) FROM classmembers JOIN classes ON(classmembers.classid = classes.classid)  WHERE classmembers.studentid = new.studentid AND 		coursetype = 'Online') > 0 THEN
+		RAISE EXCEPTION 'Already assigned a Online courses, cant join an Attendance course';
+	END IF;
+
+END IF;
+
+IF (SELECT coursetype FROM classes WHERE classes.classid = new.classid) = 'Online' THEN
+	IF (SELECT count(*) FROM classmembers JOIN classes ON(classmembers.classid = classes.classid)  WHERE classmembers.studentid = new.studentid AND 		coursetype = 'Attendance') > 0 THEN
+		RAISE EXCEPTION 'Already assigned a attandence course, cant join an Online course';
+	END IF;
+	IF (SELECT count(*) FROM classmembers JOIN classes ON(classmembers.classid = classes.classid)  WHERE classmembers.studentid = new.studentid AND 		coursetype = 'Online') > 2 THEN
+		RAISE EXCEPTION 'Already assigned a 3 Online courses, cant join an Online course';
+	END IF;
+
+END IF;
+
+RETURN NEW;
+
+END; $message$
+LANGUAGE plpgsql;
+
+
+
+  
+DROP TRIGGER teacherTeamSizeCheckOnClassInsert ON classes;
+DROP FUNCTION teacherTeamSizeCheck; --trigger is dependent on function
+
+CREATE FUNCTION teacherTeamSizeCheck()
+  RETURNS trigger AS
+$func$
+BEGIN
+   	IF (
+        /*
+	(SELECT amount FROM 
+	(SELECT COUNT(teacherid) AS amount
+        FROM classes 
+        JOIN teacher_teacherteam 
+        ON classes.teacherteamid = teacher_teacherteam.teacherteamid
+        WHERE teacher_teacherteam.teacherteamid = NEW.teacherteamid
+	*/
+	(SELECT COUNT(teacherid) AS amount
+        FROM teacher_teacherteam 
+        WHERE teacher_teacherteam.teacherteamid = NEW.teacherteamid)
+	< 2 )
+	THEN
+            RAISE EXCEPTION 'Not sufficient teachers on the teacherteam';
+   	END IF;
+   RETURN NEW;
+END
+$func$  
+LANGUAGE plpgsql;
+
+CREATE TRIGGER teacherTeamSizeCheckOnClassInsert BEFORE INSERT ON classes
+	FOR EACH ROW EXECUTE PROCEDURE teacherteamsizecheck();
+
+
+CREATE VIEW popularclasses AS
+SELECT
+  classes.classid,
+  COUNT(*) AS amount
+FROM
+  classes
+JOIN classmembers ON classes.classid = classmembers.classid
+WHERE ends > DATE(NOW())
+GROUP BY
+  classes.classid
+ORDER BY amount DESC LIMIT 10;
