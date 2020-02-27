@@ -8,7 +8,7 @@ run = async query => {
   let client;
   try {
     client = new pg.Client({
-      connectionString: "postgresql://postgres@localhost:5432/school"
+      connectionString: "postgresql://postgres:1234@localhost:3000/school"
     });
     await client.connect();
     let { rows } = await client.query(query);
